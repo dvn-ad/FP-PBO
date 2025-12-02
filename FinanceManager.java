@@ -2,9 +2,6 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages the collection of transactions and handles data persistence.
- */
 public class FinanceManager {
     private ArrayList<Transaction> transactions;
     private final String DATA_FILE = "finance_data.ser";
@@ -48,11 +45,7 @@ public class FinanceManager {
     public double getBalance() {
         double balance = 0;
         for (Transaction t : transactions) {
-            if (t instanceof Income) {
-                balance += t.getAmount();
-            } else if (t instanceof Expense) {
-                balance -= t.getAmount();
-            }
+            balance += t.getSignedAmount();
         }
         return balance;
     }

@@ -1,10 +1,7 @@
 import java.io.Serializable;
 import java.util.Date;
 
-/**
- * Abstract base class for all financial transactions.
- * Implements Serializable for easy file saving/loading.
- */
+
 public abstract class Transaction implements Serializable {
     private double amount;
     private String description;
@@ -35,6 +32,7 @@ public abstract class Transaction implements Serializable {
     }
 
     public abstract String getType();
+    public abstract double getSignedAmount();
     
     @Override
     public String toString() {

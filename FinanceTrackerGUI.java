@@ -7,9 +7,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-/**
- * The Graphical User Interface for the Finance Tracker.
- */
 public class FinanceTrackerGUI extends JFrame {
     private FinanceManager manager;
     private JLabel balanceLabel;
