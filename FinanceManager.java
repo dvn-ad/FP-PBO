@@ -16,6 +16,21 @@ public class FinanceManager {
         saveData();
     }
 
+    public void deleteTransaction(String id) {
+        transactions.removeIf(t -> t.getId().equals(id));
+        saveData();
+    }
+
+    public void updateTransaction(String id, Transaction newTransaction) {
+        for (int i = 0; i < transactions.size(); i++) {
+            if (transactions.get(i).getId().equals(id)) {
+                transactions.set(i, newTransaction);
+                saveData();
+                return;
+            }
+        }
+    }
+
     public List<Transaction> getTransactions() {
         return transactions;
     }

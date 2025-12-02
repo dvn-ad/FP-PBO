@@ -23,6 +23,13 @@ public class FinanceTrackerGUI extends JFrame {
     private JComboBox<String> filterMonth;
     private JComboBox<String> filterYear;
 
+    private List<Transaction> currentDisplayedTransactions;
+    private JButton updateBtn;
+    private JButton deleteBtn;
+    private JButton addIncomeBtn;
+    private JButton addExpenseBtn;
+    private String selectedTransactionId;
+
     public FinanceTrackerGUI() {
         manager = new FinanceManager();
         
@@ -80,8 +87,32 @@ public class FinanceTrackerGUI extends JFrame {
 
 
         String[] columnNames = {"Date", "Type", "Category", "Description", "Amount"};
-        tableModel = new DefaultTableModel(columnNames, 0);
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         transactionTable = new JTable(tableModel);
+        transactionTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && transactionTable.getSelectedRow() != -1) {
+                int row = transactionTable.getSelectedRow();
+                if (row < currentDisplayedTransactions.size()) {
+                    Transaction t = currentDisplayedTransactions.get(row);
+                    selectedTransactionId = t.getId();
+                    
+                    amountField.setText(String.valueOf(t.getAmount()));
+                    descField.setText(t.getDescription());
+                    categoryBox.setSelectedItem(t.getCategory());
+                    dateField.setText(new SimpleDateFormat("yyyy-MM-dd").format(t.getDate()));
+                    
+                    updateBtn.setEnabled(true);
+                    deleteBtn.setEnabled(true);
+                    addIncomeBtn.setEnabled(false);
+                    addExpenseBtn.setEnabled(false);
+                }
+            }
+        });
         add(new JScrollPane(transactionTable), BorderLayout.CENTER);
 
 
@@ -112,17 +143,28 @@ public class FinanceTrackerGUI extends JFrame {
         bottomPanel.add(inputPanel);
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addIncomeBtn = new JButton("Add Income (+)");
-        JButton addExpenseBtn = new JButton("Add Expense (-)");
+        addIncomeBtn = new JButton("Add Income (+)");
+        addExpenseBtn = new JButton("Add Expense (-)");
+        updateBtn = new JButton("Update");
+        deleteBtn = new JButton("Delete");
+        JButton clearBtn = new JButton("Clear");
         
         addIncomeBtn.setBackground(new Color(144, 238, 144));
         addExpenseBtn.setBackground(new Color(255, 182, 193));
+        updateBtn.setEnabled(false);
+        deleteBtn.setEnabled(false);
 
         addIncomeBtn.addActionListener(e -> addTransaction(true));
         addExpenseBtn.addActionListener(e -> addTransaction(false));
+        updateBtn.addActionListener(e -> updateTransaction());
+        deleteBtn.addActionListener(e -> deleteTransaction());
+        clearBtn.addActionListener(e -> clearSelection());
 
         buttonPanel.add(addIncomeBtn);
         buttonPanel.add(addExpenseBtn);
+        buttonPanel.add(updateBtn);
+        buttonPanel.add(deleteBtn);
+        buttonPanel.add(clearBtn);
         bottomPanel.add(buttonPanel);
 
         add(bottomPanel, BorderLayout.SOUTH);
@@ -170,6 +212,81 @@ public class FinanceTrackerGUI extends JFrame {
         }
     }
 
+    private void updateTransaction() {
+        if (selectedTransactionId == null) return;
+        
+        try {
+            double amount = Double.parseDouble(amountField.getText());
+            String desc = descField.getText();
+            String category = (String) categoryBox.getSelectedItem();
+            String dateStr = dateField.getText();
+            
+            if (desc.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter a description.");
+                return;
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            Date date;
+            try {
+                date = sdf.parse(dateStr);
+            } catch (ParseException e) {
+                 JOptionPane.showMessageDialog(this, "Invalid Date Format. Use yyyy-MM-dd");
+                 return;
+            }
+            
+            Transaction existingT = null;
+            for(Transaction t : currentDisplayedTransactions) {
+                if(t.getId().equals(selectedTransactionId)) {
+                    existingT = t;
+                    break;
+                }
+            }
+            
+            if(existingT != null) {
+                Transaction newT;
+                if (existingT instanceof Income) {
+                    newT = new Income(amount, desc, category, date);
+                } else {
+                    newT = new Expense(amount, desc, category, date);
+                }
+                
+                manager.updateTransaction(selectedTransactionId, newT);
+                refreshTable();
+                updateBalance();
+                clearSelection();
+            }
+
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid Amount. Please enter a number.");
+        }
+    }
+
+    private void deleteTransaction() {
+        if (selectedTransactionId != null) {
+            int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete this transaction?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                manager.deleteTransaction(selectedTransactionId);
+                refreshTable();
+                updateBalance();
+                clearSelection();
+            }
+        }
+    }
+
+    private void clearSelection() {
+        transactionTable.clearSelection();
+        selectedTransactionId = null;
+        amountField.setText("");
+        descField.setText("");
+        dateField.setText(new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+        
+        updateBtn.setEnabled(false);
+        deleteBtn.setEnabled(false);
+        addIncomeBtn.setEnabled(true);
+        addExpenseBtn.setEnabled(true);
+    }
+
     private void refreshTable() {
         tableModel.setRowCount(0); 
         
@@ -184,11 +301,11 @@ public class FinanceTrackerGUI extends JFrame {
             year = Integer.parseInt(yearStr);
         }
 
-        List<Transaction> list = manager.getFilteredTransactions(type, category, month, year);
+        currentDisplayedTransactions = manager.getFilteredTransactions(type, category, month, year);
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         
-        for (Transaction t : list) {
+        for (Transaction t : currentDisplayedTransactions) {
             Object[] row = {
                 sdf.format(t.getDate()),
                 t.getType(),
